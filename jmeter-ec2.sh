@@ -110,16 +110,26 @@ function runsetup() {
               
         # create the instance(s) and capture the instance id(s)
         echo -n "requesting $instance_count instance(s)..."
-        attempted_instanceids=(`ec2-run-instances \
-		            --key $AMAZON_KEYPAIR_NAME \
-                    -t $INSTANCE_TYPE \
-                    -g $INSTANCE_SECURITYGROUP \
-                    -n 1-$instance_count \
-		            --region $REGION \
-                    --availability-zone \
-                    $INSTANCE_AVAILABILITYZONE $AMI_ID \
-                    | awk '/^INSTANCE/ {print $2}'`)
-        
+		if [ "$SUBNET"!="" ] ; then
+			attempted_instanceids=(`ec2-run-instances \
+						--key $AMAZON_KEYPAIR_NAME \
+						-t $INSTANCE_TYPE \
+						-g $INSTANCE_SECURITYGROUP \
+						-n 1-$instance_count \
+						-s \
+						$SUBNET $AMI_ID \
+						| awk '/^INSTANCE/ {print $2}'`)
+        else
+			attempted_instanceids=(`ec2-run-instances \
+						--key $AMAZON_KEYPAIR_NAME \
+						-t $INSTANCE_TYPE \
+						-g $INSTANCE_SECURITYGROUP \
+						-n 1-$instance_count \
+						--region $REGION \
+						--availability-zone \
+						$INSTANCE_AVAILABILITYZONE $AMI_ID \
+						| awk '/^INSTANCE/ {print $2}'`)
+		fi
         # check to see if Amazon returned the desired number of instances as a limit is placed restricting this and we need to handle the case where
         # less than the expected number is given wthout failing the test.
         countof_instanceids=${#attempted_instanceids[@]}
@@ -270,6 +280,7 @@ function runsetup() {
 	
     # scp install.sh
     if [ "$setup" = "TRUE" ] ; then
+		sleep 60
     	echo -n "copying install.sh to $instance_count server(s)..."
 	    for host in ${hosts[@]} ; do
 	        (scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
